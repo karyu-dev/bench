@@ -6,6 +6,7 @@ from psutil import virtual_memory, cpu_count
 
 from dataclass import SysInfo
 import runs
+from disk_bench import disk_benchmark_run
 
 
 GB = (1024 * 1024 * 1024)
@@ -42,7 +43,9 @@ print(sysinfo.l3_size)
 # runs.GEMM_run(8000, 15)
 
 # Paliers L1/L2/L3/DRAM (footprint vs bande passante)
-runs.STREAM_sweep("triad", it=5)
-print()
+# runs.STREAM_sweep("triad", it=5)
+# print()
 
 # runs.STREAM_run_DRAM(int(1e9), 10, 1)
+
+disk_benchmark_run()
