@@ -49,6 +49,7 @@ def bench_disk_sequential_read(
     total_bytes = file_size_mb * 1024 * 1024
     num_blocks = total_bytes // block_bytes
 
+    # Tampon mmap garanti aligné sur la page (4096 octets)
     buf = create_aligned_buffer(block_bytes)
 
     flags = os.O_RDONLY | os.O_DIRECT
@@ -57,7 +58,8 @@ def bench_disk_sequential_read(
     try:
         start = perf_counter()
         for _ in range(num_blocks):
-            _ = os.read(fd, block_bytes)
+            # ✅ FIX : os.readv lit directement dans le buffer mmap aligné
+            os.readv(fd, [buf])
         elapsed = perf_counter() - start
     finally:
         os.close(fd)
@@ -74,10 +76,12 @@ def bench_disk_random_4k_read(
     total_bytes = file_size_mb * 1024 * 1024
     max_blocks = (total_bytes // block_bytes) - 1
 
+    # Tampon 4 KiB mmap aligné
+    buf = create_aligned_buffer(block_bytes)
+
     flags = os.O_RDONLY | os.O_DIRECT
     fd = os.open(filepath, flags)
 
-    # Offsets aléatoires alignés sur 4 KiB
     random_offsets = [
         random.randint(0, max_blocks) * block_bytes for _ in range(iterations)
     ]
@@ -85,16 +89,16 @@ def bench_disk_random_4k_read(
     try:
         start = perf_counter()
         for offset in random_offsets:
-            os.pread(fd, block_bytes, offset)
+            # ✅ FIX : os.preadv lit directement à l'offset dans le buffer mmap aligné
+            os.preadv(fd, [buf], offset)
         elapsed = perf_counter() - start
     finally:
         os.close(fd)
 
     iops = iterations / elapsed
-    avg_latency_us = (elapsed / iterations) * 1e6  # Microsecondes
+    avg_latency_us = (elapsed / iterations) * 1e6
 
     return {"iops": iops, "avg_latency_us": avg_latency_us}
-
 
 def disk_benchmark_run(
     target_dir: str = "./", file_size_mb: int = 1024
