@@ -1,15 +1,26 @@
 CC      ?= gcc
-CFLAGS  ?= -O3 -march=native -fPIC -shared -fno-tree-loop-distribute-patterns
+CFLAGS  ?= -O3 -march=native -fPIC -shared -fopenmp -fno-tree-loop-distribute-patterns
 
-TARGET  = libstream.so
-SRC     = stream_kernels.c
+TARGETS = libstream.so libfma.so liblatency.so libomp.so libbranch_alu.so
 
-all: $(TARGET)
+all: $(TARGETS)
 
-$(TARGET): $(SRC)
+libstream.so: stream_kernels.c
+	$(CC) $(CFLAGS) $< -o $@
+
+libfma.so: fma_kernel.c
+	$(CC) $(CFLAGS) $< -o $@
+
+liblatency.so: latency_kernel.c
+	$(CC) $(CFLAGS) $< -o $@
+
+libomp.so: omp_kernels.c
+	$(CC) $(CFLAGS) $< -o $@
+
+libbranch_alu.so: branch_alu_kernel.c
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGETS)
 
 .PHONY: all clean
