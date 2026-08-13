@@ -5,7 +5,7 @@ import ctypes
 from pathlib import Path
 from psutil import virtual_memory
 
-from get_sysinfo import get_exact_cache_sizes
+from get_sysinfo import get_exact_cache_sizes, load_guardrail
 
 
 # 1. Chargement de la bibliothèque partagée C
@@ -53,6 +53,7 @@ def _STREAM_bench(kernel: str, n: int, it: int, internal_its: int,
                   min_time: float, flush: bool, seed: int | None,
                   silent: bool, random: bool = False) -> dict[str, float]:
     argn = KERNEL_ARGS[kernel]
+    load_guardrail(silent=silent)
     rng = np.random.default_rng(seed)
     q = float(rng.random())
 
@@ -173,6 +174,7 @@ def STREAM_sweep(kernel: str = "copy", it: int = 5, seed: int | None = None,
 
 
 def GEMM_run(n: int, it: int, seed: int | None = None, min_time: float = 0.2) -> dict[str, float]:
+    load_guardrail()
     rng = np.random.default_rng(seed)
     a = rng.random((n, n), dtype=np.float64)
     b = rng.random((n, n), dtype=np.float64)
