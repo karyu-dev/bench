@@ -51,7 +51,7 @@ def _call_kernel(kernel: str, a_p, b_p, c_p, q: float, n: int, internal_its: int
 
 def _STREAM_bench(kernel: str, n: int, it: int, internal_its: int,
                   min_time: float, flush: bool, seed: int | None,
-                  silent: bool) -> dict[str, float]:
+                  silent: bool, random: bool = False) -> dict[str, float]:
     argn = KERNEL_ARGS[kernel]
     rng = np.random.default_rng(seed)
     q = float(rng.random())
@@ -59,14 +59,15 @@ def _STREAM_bench(kernel: str, n: int, it: int, internal_its: int,
     # Bases décalées de 0 / 64 / 128 octets pour éviter les conflits de sets
     a = np.empty(n + 2 * PAD, dtype=np.float64)
     b = np.empty(n + 2 * PAD, dtype=np.float64)
-    b[PAD:PAD + n] = rng.random(n)
+    # Contenu : constant (rapide, first-touch uniquement) ou aléatoire (CPU-bound RNG)
+    b[PAD:PAD + n] = rng.random(n) if random else 1.0
 
     a_p = a[:n].ctypes.data_as(c_double_p)
     b_p = b[PAD:PAD + n].ctypes.data_as(c_double_p)
     c_p = None
     if argn == 3:
         c = np.empty(n + 2 * PAD, dtype=np.float64)
-        c[2 * PAD:2 * PAD + n] = rng.random(n)
+        c[2 * PAD:2 * PAD + n] = rng.random(n) if random else 1.0
         c_p = c[2 * PAD:2 * PAD + n].ctypes.data_as(c_double_p)
 
     # Buffer de flush : 2x le L3, écrit entre chaque échantillon pour vider le cache
@@ -110,37 +111,43 @@ def _STREAM_bench(kernel: str, n: int, it: int, internal_its: int,
 
 
 def _STREAM_copy_run(n: int, it: int, internal_its: int = 1, seed: int | None = None,
-                     min_time: float = 0.2, flush: bool = True, silent: bool = False) -> dict[str, float]:
-    return _STREAM_bench("copy", n, it, internal_its, min_time, flush, seed, silent)
+                     min_time: float = 0.2, flush: bool = True, silent: bool = False,
+                     random: bool = False) -> dict[str, float]:
+    return _STREAM_bench("copy", n, it, internal_its, min_time, flush, seed, silent, random)
 
 
 def _STREAM_scale_run(n: int, it: int, internal_its: int = 1, seed: int | None = None,
-                      min_time: float = 0.2, flush: bool = True, silent: bool = False) -> dict[str, float]:
-    return _STREAM_bench("scale", n, it, internal_its, min_time, flush, seed, silent)
+                      min_time: float = 0.2, flush: bool = True, silent: bool = False,
+                      random: bool = False) -> dict[str, float]:
+    return _STREAM_bench("scale", n, it, internal_its, min_time, flush, seed, silent, random)
 
 
 def _STREAM_add_run(n: int, it: int, internal_its: int = 1, seed: int | None = None,
-                    min_time: float = 0.2, flush: bool = True, silent: bool = False) -> dict[str, float]:
-    return _STREAM_bench("add", n, it, internal_its, min_time, flush, seed, silent)
+                    min_time: float = 0.2, flush: bool = True, silent: bool = False,
+                    random: bool = False) -> dict[str, float]:
+    return _STREAM_bench("add", n, it, internal_its, min_time, flush, seed, silent, random)
 
 
 def _STREAM_triad_run(n: int, it: int, internal_its: int = 1, seed: int | None = None,
-                      min_time: float = 0.2, flush: bool = True, silent: bool = False) -> dict[str, float]:
-    return _STREAM_bench("triad", n, it, internal_its, min_time, flush, seed, silent)
+                      min_time: float = 0.2, flush: bool = True, silent: bool = False,
+                      random: bool = False) -> dict[str, float]:
+    return _STREAM_bench("triad", n, it, internal_its, min_time, flush, seed, silent, random)
 
 
 def STREAM_run_DRAM(n: int, it: int, internal_its: int = 1, seed: int | None = None,
-                    min_time: float = 0.2, flush: bool = True) -> dict[str, dict[str, float]]:
+                    min_time: float = 0.2, flush: bool = True,
+                    random: bool = False) -> dict[str, dict[str, float]]:
     return {
-        "copy": _STREAM_copy_run(n, it, internal_its, seed, min_time, flush),
-        "scale": _STREAM_scale_run(n, it, internal_its, seed, min_time, flush),
-        "add": _STREAM_add_run(n, it, internal_its, seed, min_time, flush),
-        "triad": _STREAM_triad_run(n, it, internal_its, seed, min_time, flush),
+        "copy": _STREAM_copy_run(n, it, internal_its, seed, min_time, flush, random=random),
+        "scale": _STREAM_scale_run(n, it, internal_its, seed, min_time, flush, random=random),
+        "add": _STREAM_add_run(n, it, internal_its, seed, min_time, flush, random=random),
+        "triad": _STREAM_triad_run(n, it, internal_its, seed, min_time, flush, random=random),
     }
 
 
 def STREAM_sweep(kernel: str = "copy", it: int = 5, seed: int | None = None,
-                 min_time: float = 0.2, flush: bool = True) -> dict[int, dict[str, float]]:
+                 min_time: float = 0.2, flush: bool = True,
+                 random: bool = False) -> dict[int, dict[str, float]]:
     """Balaie N en puissances de 2 : visualise les paliers L1/L2/L3/DRAM."""
     argn = KERNEL_ARGS[kernel]
     n_min = 256
@@ -157,7 +164,7 @@ def STREAM_sweep(kernel: str = "copy", it: int = 5, seed: int | None = None,
     while n <= n_max:
         # internal_its auto : chaque appel C dure ~0.1 s (hypothèse 20 GB/s)
         internal_its = max(1, int(0.1 * 20e9 / (argn * n * 8)))
-        metrics = _STREAM_bench(kernel, n, it, internal_its, min_time, flush, seed, silent=True)
+        metrics = _STREAM_bench(kernel, n, it, internal_its, min_time, flush, seed, silent=True, random=random)
         footprint_mib = argn * (n * 8) / (1024**2)
         print(f"n={n:>9} | footprint {footprint_mib:>10.2f} MiB | median {metrics['median']:>8.2f} GB/s | peak {metrics['peak']:>8.2f} GB/s")
         results[n] = metrics

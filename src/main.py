@@ -7,6 +7,7 @@ from psutil import virtual_memory, cpu_count
 from dataclass import SysInfo
 import runs
 from disk_bench import disk_benchmark_run
+from alloc_bench import bench_memory_allocation
 
 
 # GB = (1024 * 1024 * 1024)
@@ -48,4 +49,6 @@ from disk_bench import disk_benchmark_run
 
 # runs.STREAM_run_DRAM(int(1e9), 10, 1)
 
+bench_memory_allocation()
 disk_benchmark_run()
+runs.STREAM_sweep("triad")
