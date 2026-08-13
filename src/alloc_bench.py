@@ -72,7 +72,7 @@ def bench_memory_allocation(size_gb: float = 2.0, with_rng: bool = False,
         )
 
         # D2. First-touch multi-thread : parallélise le page faulting (per-node/socket)
-        nthreads = min(os.cpu_count() or 4, 64)
+        nthreads = min(os.cpu_count() or 4, 24)
         arr2 = np.empty(n_elements, dtype=np.float64)
         chunk = (n_elements + nthreads - 1) // nthreads
 

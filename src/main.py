@@ -49,6 +49,6 @@ from alloc_bench import bench_memory_allocation
 
 # runs.STREAM_run_DRAM(int(1e9), 10, 1)
 
-bench_memory_allocation(with_diag=True)
+bench_memory_allocation(with_diag=True, with_rng=True)
 # disk_benchmark_run()
 # runs.STREAM_sweep("triad")
