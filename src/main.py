@@ -204,7 +204,7 @@ def print_summary_table(results: dict):
         )
     if "disk" in b:
         seq_r = b["disk"].get("seq_read_mbps", 0.0)
-        iops = b["disk"].get("rand_4k_read", {}).get("iops", 0.0)
+        iops = b["disk"].get("rand_read_4k_iops", 0)
         table.add_row("Stockage NVMe", "Lecture Séquentielle", f"{seq_r:.1f} MB/s")
         table.add_row("Stockage NVMe", "Lecture Aléatoire 4K", f"{iops:.0f} IOPS")
     if "gpu" in b:
